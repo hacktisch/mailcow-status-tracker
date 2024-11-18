@@ -1,0 +1,35 @@
+{
+  "name": "mailcow-status-tracker",
+  "version": "1.0.0",
+  "author": "Merijn van Wouden",
+  "license": "ISC",
+  "description": "Track delivery status of outgoing Mailcow emails by checking the Postfix logs through the Mailcow API.",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "NODE_ENV=development sh -c 'if command -v nodemon > /dev/null; then nodemon src/index.js; else node src/index.js; fi'"
+  },
+  "keywords": [
+    "mailcow",
+    "email",
+    "log",
+    "tracker",
+    "status",
+    "webhook",
+    "email-status",
+    "mail-logs",
+    "mailcow-api",
+    "log-tracker",
+    "postfix-tracker",
+    "postfix-status"
+  ],
+  "dependencies": {
+    "axios": "^1.7.7",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.1",
+    "node-cron": "^3.0.3",
+    "sqlite3": "^5.1.7"
+  }
+}
+
