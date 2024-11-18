@@ -35,6 +35,7 @@ This is a Node.js-based application for tracking and processing email logs from 
 | `LOGS_PER_BATCH` | Number of logs to fetch per batch.                           | `100`                                           |
 | `CRON_SCHEDULE`  | Cron schedule for periodic synchronization.                  | `* * * * *`                                     |
 | `PORT`           | Port for the Express server.                                 | `3005`                                          |
+| `LOG_RETENTION_DAYS`           | Number of days after which to truncate log entries.                                  | `7`                                          |
 
 ## Usage
 

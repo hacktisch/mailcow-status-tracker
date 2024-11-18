@@ -142,7 +142,45 @@ export async function processLogs(logs) {
 }
 
 export async function syncLogsWithDb() {
+  await truncateOldLogs();
   const logs = await fetchLogs();
   return await processLogs(logs);
+}
+
+export async function truncateOldLogs() {
+  const logRetentionDays = parseInt(process.env.LOG_RETENTION_DAYS, 10) || 7;
+  const cutoffDate = new Date(
+    Date.now() - logRetentionDays * 24 * 60 * 60 * 1000,
+  ).toISOString();
+
+  return new Promise((resolve, reject) => {
+    db.serialize(() => {
+      // Delete from mail_status
+      db.run(
+        `DELETE FROM mail_status WHERE timestamp < ?`,
+        [cutoffDate],
+        function (err) {
+          if (err) return reject(err);
+          if (this.changes > 0) {
+            console.log(`Deleted ${this.changes} rows from mail_status`);
+          }
+        },
+      );
+
+      // Delete from mails
+      db.run(
+        `DELETE FROM mails WHERE timestamp < ?`,
+        [cutoffDate],
+        function (err) {
+          if (err) return reject(err);
+          if (this.changes > 0) {
+            console.log(`Deleted ${this.changes} rows from mails`);
+          }
+        },
+      );
+
+      resolve();
+    });
+  });
 }
 

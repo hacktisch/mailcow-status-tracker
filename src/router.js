@@ -7,17 +7,26 @@ export const router = express();
 // Home route: Fetch logs, process them, and display results
 router.get('/', async (req, res) => {
   try {
-    const domains = ['example.com', 'demo.org', 'test.net'];
-    const demoLogs = Array.from({ length: 10 }, (_, index) => ({
-      recipient: `user${index + 1}@${domains[index % domains.length]}`,
-      messageId: `${Date.now() - index * 60000}.${Math.random().toString(36).slice(2, 12)}@${domains[index % domains.length]}`,
-      status: Math.random()>0.3 ? 'sent' : Math.random() > 0.35 ? 'bounced' : 'deferred',
-      timestamp: new Date(Date.now() - index * 60000).toISOString(), // timestamps spaced by 1 minute
-      queueId: Math.random().toString(36).slice(2, 12).toUpperCase(), // Simulates Postfix queue IDs
-      webhook: index % 2 === 0 ? 1 : 0, // Alternate webhook sent status
-    }));
+    const logs = await fetchLogs();
+    const result = await processLogs(logs);
 
-    const logsHtml = demoLogs
+    const query = `
+      SELECT 
+          mails.recipient, 
+          mails.message_id AS messageId, 
+          mail_status.status, 
+          mail_status.timestamp, 
+          mails.queue_id AS queueId,
+          webhook
+      FROM mail_status
+      INNER JOIN mails ON mail_status.queue_id = mails.queue_id
+      ORDER BY mails.timestamp DESC, mail_status.timestamp DESC
+      LIMIT 100
+    `;
+
+    const rows = await dbAll(query);
+
+    const logsHtml = rows
       .map(
         (log) => `
           <tr>
@@ -33,6 +42,7 @@ router.get('/', async (req, res) => {
               }; color: white;">${log.status}</span></td>
               <td>${new Date(log.timestamp).toLocaleString()}</td>
               <td>${log.queueId}</td>
+              <td>${log.webhook}</td>
               <td>${log.messageId || 'Unknown'}</td>
           </tr>
         `,
@@ -55,7 +65,14 @@ router.get('/', async (req, res) => {
       </head>
       <body>
           <h1>Mail Logs</h1>
-        
+          <div>Batch processing result:
+              <span style="padding: 5px; border-radius: 4px; background-color: ${
+                result.newStatuses > 0 ? 'green' : 'gray'
+              }; color: white;">${result.newStatuses} new statuses</span>
+              <span style="padding: 5px; border-radius: 4px; background-color: ${
+                result.webhookSent > 0 ? 'green' : 'gray'
+              }; color: white;">${result.webhookSent} webhooks sent</span>
+          </div>
           <table>
               <thead>
                   <tr>
@@ -63,6 +80,7 @@ router.get('/', async (req, res) => {
                       <th>Status</th>
                       <th>Timestamp</th>
                       <th>Queue ID</th>
+                      <th>Webhook Sent</th>
                       <th>Message ID</th>
                   </tr>
               </thead>
