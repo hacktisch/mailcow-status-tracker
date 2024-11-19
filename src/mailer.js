@@ -19,6 +19,10 @@ async function sendEmail({ from, to, subject, text, html, includeTracker }) {
 
   if (!emailAddress || !smtpAccounts[emailAddress]) {
     if (process.env.SMTP_FALLBACK_ACCOUNT) {
+      from = from.replace(
+        new RegExp(emailAddress, 'g'),
+        process.env.SMTP_FALLBACK_ACCOUNT,
+      );
       emailAddress = process.env.SMTP_FALLBACK_ACCOUNT;
     } else {
       throw new Error(`SMTP account for '${emailAddress}' is not configured.`);
