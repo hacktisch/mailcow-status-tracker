@@ -85,6 +85,9 @@ It also supports sending emails and tracking opens via a tracking pixel. And it 
      - `text` (string, optional): Plain text content of the email.
      - `html` (string, optional): HTML content of the email.
      - `includeTracker` (boolean, optional): Whether to include a tracking pixel to track opens.
+     - `cc` (array, optional): Array of CC addresses.
+     - `bcc` (array, optional): Array of BCC addresses.
+     - `attachments` (array, optional): Array of files in format `[{content:'...',filename:'...'}]`
 
      **Example Request**:
      ```json

@@ -163,7 +163,18 @@ router.get('/sync-logs', async (req, res) => {
 });
 
 router.post('/send', async (req, res) => {
-  const { from, to, subject, text, html, includeTracker, password } = req.body;
+  const {
+    from,
+    to,
+    subject,
+    cc,
+    bcc,
+    attachments,
+    text,
+    html,
+    includeTracker,
+    password,
+  } = req.body;
 
   // Check if authentication is required
   if (process.env.AUTH_PASSWORD) {
@@ -185,6 +196,9 @@ router.post('/send', async (req, res) => {
       from,
       to,
       subject,
+      cc,
+      bcc,
+      attachment,
       text,
       html,
       includeTracker,

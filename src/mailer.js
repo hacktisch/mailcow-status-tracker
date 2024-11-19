@@ -2,7 +2,17 @@ import nodemailer from 'nodemailer';
 import crypto from 'crypto';
 import { dbRun, dbGet, insertMailStmt, insertStatusStmt } from './db.js';
 
-async function sendEmail({ from, to, subject, text, html, includeTracker }) {
+async function sendEmail({
+  from,
+  to,
+  cc,
+  bcc,
+  subject,
+  text,
+  html,
+  includeTracker,
+  attachments,
+}) {
   const smtpConfig = {
     host: process.env.SMTP_HOST,
     port: parseInt(process.env.SMTP_PORT, 10),
@@ -53,12 +63,16 @@ async function sendEmail({ from, to, subject, text, html, includeTracker }) {
         : `<p>${text}</p>${trackingPixel}`
       : null;
 
+  // Construct mail options
   const mailOptions = {
     from, // Pass the full `from` field, including the name if provided
     to,
+    cc: cc?.length ? cc : undefined,
+    bcc: bcc?.length ? bcc : undefined,
     subject,
     text,
     html: emailContent,
+    attachments,
   };
 
   try {
@@ -85,7 +99,7 @@ async function sendEmail({ from, to, subject, text, html, includeTracker }) {
       }
     }
 
-    return info.messageId;
+    return info.messageId.replace(/[<>]/g, ''); // Remove < and > for consistency
   } catch (error) {
     console.error(`Error sending email from ${from} to ${to}:`, error.message);
     throw error;
