@@ -1,8 +1,24 @@
 import express from 'express';
-import { syncLogsWithDb, fetchLogs, processLogs } from './logs.js';
-import { dbAll } from './db.js';
+import {
+  syncLogsWithDb,
+  fetchLogs,
+  processLogs,
+  sendWebhooks,
+} from './logs.js';
+import { dbAll, dbRun, insertStatusStmt } from './db.js';
+import { sendEmail } from './mailer.js';
 
 export const router = express();
+router.use(express.json());
+
+const colors = {
+  processed: '#d6a45e',
+  sent: '#bcd514',
+  open: '#028690',
+  bounced: '#c042be',
+  dropped: '#b2129f',
+  deferred: '#459e1a',
+};
 
 // Home route: Fetch logs, process them, and display results
 router.get('/', async (req, res) => {
@@ -12,15 +28,16 @@ router.get('/', async (req, res) => {
 
     const query = `
       SELECT 
-          mails.recipient, 
-          mails.message_id AS messageId, 
+          mail.recipient, 
+          mail.message_id AS messageId, 
           mail_status.status, 
           mail_status.timestamp, 
-          mails.queue_id AS queueId,
+          mail.queue_id AS queueId,
+          tracking_id,
           webhook
       FROM mail_status
-      INNER JOIN mails ON mail_status.queue_id = mails.queue_id
-      ORDER BY mails.timestamp DESC, mail_status.timestamp DESC
+      INNER JOIN mail ON mail_status.mail_id = mail.id
+      ORDER BY mail_status.timestamp DESC,  mail.timestamp DESC
       LIMIT 100
     `;
 
@@ -32,18 +49,13 @@ router.get('/', async (req, res) => {
           <tr>
               <td>${log.recipient || 'Unknown'}</td>
               <td><span style="padding: 5px; border-radius: 4px; background-color: ${
-                log.status === 'sent'
-                  ? 'green'
-                  : log.status === 'bounced'
-                  ? 'red'
-                  : log.status === 'deferred'
-                  ? 'orange'
-                  : 'gray'
+                colors[log.status] || 'gray'
               }; color: white;">${log.status}</span></td>
               <td>${new Date(log.timestamp).toLocaleString()}</td>
               <td>${log.queueId}</td>
               <td>${log.webhook}</td>
               <td>${log.messageId || 'Unknown'}</td>
+              <td>${log.tracking_id || '-'}</td>
           </tr>
         `,
       )
@@ -82,6 +94,7 @@ router.get('/', async (req, res) => {
                       <th>Queue ID</th>
                       <th>Webhook Sent</th>
                       <th>Message ID</th>
+                      <th>Tracking ID</th>
                   </tr>
               </thead>
               <tbody>
@@ -110,14 +123,13 @@ router.get('/message', async (req, res) => {
   try {
     const query = `
       SELECT 
-          mail_status.queue_id,
           mail_status.timestamp,
           mail_status.status,
           mail_status.description,
           recipient
       FROM mail_status
-      INNER JOIN mails ON mail_status.queue_id = mails.queue_id
-      WHERE mails.message_id = ?
+      INNER JOIN mail ON mail_status.mail_id = mail.id
+      WHERE mail.message_id = ?
       ORDER BY mail_status.timestamp ASC
     `;
 
@@ -148,5 +160,75 @@ router.get('/sync-logs', async (req, res) => {
     console.error('Error during manual sync:', err.message);
     res.status(500).json({ error: 'Internal server error' });
   }
+});
+
+router.post('/send', async (req, res) => {
+  const { from, to, subject, text, html, includeTracker, password } = req.body;
+
+  // Check if authentication is required
+  if (process.env.AUTH_PASSWORD) {
+    if (!password || password !== process.env.AUTH_PASSWORD) {
+      return res.status(401).json({
+        error: 'Unauthorized: Invalid or missing password.',
+      });
+    }
+  }
+
+  if (!from || !to || !subject) {
+    return res.status(400).json({
+      error: "Missing required fields: 'from', 'to', 'subject'.",
+    });
+  }
+
+  try {
+    const messageId = await sendEmail({
+      from,
+      to,
+      subject,
+      text,
+      html,
+      includeTracker,
+    });
+    return res.status(200).json({ success: true, messageId });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+router.get('/track', async (req, res) => {
+  const { trackingId } = req.query;
+
+  if (trackingId) {
+    console.log(`Email opened with tracking ID: ${trackingId}`);
+
+    const query = `SELECT id FROM mail WHERE tracking_id = ?`;
+
+    const rows = await dbAll(query, [trackingId]);
+
+    for (const { id } of rows) {
+      await dbRun(insertStatusStmt, [id, new Date().toISOString(), 'open', '']);
+    }
+    await sendWebhooks();
+  }
+
+  // Anti-cache headers
+  res.setHeader(
+    'Cache-Control',
+    'no-store, no-cache, must-revalidate, proxy-revalidate',
+  );
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.setHeader('Surrogate-Control', 'no-store');
+
+  // Return a 1x1 transparent GIF
+  const transparentGif = Buffer.from(
+    'R0lGODlhAQABAIAAAAUEBAEAAAAACwAAAAAAQABAAACAkQBADs=',
+    'base64',
+  );
+  res.writeHead(200, {
+    'Content-Type': 'image/gif',
+    'Content-Length': transparentGif.length,
+  });
+  res.end(transparentGif);
 });
 

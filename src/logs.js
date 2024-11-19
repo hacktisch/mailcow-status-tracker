@@ -1,5 +1,13 @@
 import axios from 'axios';
-import { db, dbAll, dbRun } from './db.js';
+import {
+  db,
+  dbAll,
+  dbRun,
+  dbGet,
+  insertMailStmt,
+  insertStatusStmt,
+  updateWebhookStmt,
+} from './db.js';
 
 export async function fetchLogs(pageSize = process.env.LOGS_PER_BATCH) {
   let logsData = [];
@@ -24,7 +32,9 @@ export async function fetchLogs(pageSize = process.env.LOGS_PER_BATCH) {
           const queueIdMatch = log.message.match(/\b[A-F0-9]{10,}\b/); // Match Postfix queue ID
           const queueId = queueIdMatch?.[0] ?? false;
           const messageId =
-            log.message.match(/message-id=<([^>]+)>/)?.[1] ?? false;
+            log.message
+              .match(/message-id=<[^>]+>/)?.[0]
+              ?.replace(/^message-id=/, '') ?? false;
           const recipient = log.message.match(/to=<([^>]+)>/)?.[1];
 
           if (queueId && (messageId || status || recipient)) {
@@ -54,31 +64,8 @@ export async function fetchLogs(pageSize = process.env.LOGS_PER_BATCH) {
   return [];
 }
 
-const prepareStatements = () => ({
-  insertMailStmt: db.prepare(`
-    INSERT INTO mails (queue_id, timestamp, message_id, recipient)
-    VALUES (?, ?, ?, ?)
-    ON CONFLICT(queue_id) DO UPDATE SET
-      message_id = COALESCE(excluded.message_id, mails.message_id),
-      recipient = COALESCE(excluded.recipient, mails.recipient)
-  `),
-  insertStatusStmt: db.prepare(`
-    INSERT INTO mail_status (queue_id, timestamp, status, description)
-    VALUES (?, ?, ?, ?)
-    ON CONFLICT(queue_id, timestamp, status) DO NOTHING
-  `),
-  updateWebhookStmt: db.prepare(`
-    UPDATE mail_status
-    SET webhook = ?
-    WHERE queue_id = ? AND timestamp = ? AND status = ?
-  `),
-});
-
 export async function processLogs(logs) {
-  const { insertMailStmt, insertStatusStmt, updateWebhookStmt } =
-    prepareStatements();
-  let newStatuses = 0,
-    webhookSent = 0;
+  let newStatuses = 0;
 
   for (const {
     queueId,
@@ -89,10 +76,17 @@ export async function processLogs(logs) {
     description,
   } of logs) {
     try {
-      await dbRun(insertMailStmt, [queueId, timestamp, messageId, recipient]);
-      if (status) {
+      const row = await dbGet(insertMailStmt, [
+        queueId,
+        messageId,
+        recipient,
+        null, //tracking_id,
+        timestamp,
+      ]);
+
+      if (status && row?.id) {
         newStatuses += await dbRun(insertStatusStmt, [
-          queueId,
+          row.id,
           timestamp,
           status,
           description,
@@ -105,16 +99,30 @@ export async function processLogs(logs) {
     }
   }
 
+  const webhookSent = await sendWebhooks();
+
+  return { newStatuses, webhookSent };
+}
+
+export async function sendWebhooks() {
+  let webhookSent = 0;
   const rowsToProcess = await dbAll(`
-    SELECT mails.queue_id, mail_status.timestamp, status, description, message_id, recipient
+    SELECT mail_status.id, mail.queue_id, mail_status.timestamp, status, description, message_id, recipient
     FROM mail_status
-    JOIN mails ON mail_status.queue_id = mails.queue_id
+    JOIN mail ON mail_id = mail.id
     WHERE webhook = 0 AND status IS NOT NULL AND message_id IS NOT NULL
   `);
 
   for (const row of rowsToProcess) {
-    const { queue_id, timestamp, status, description, message_id, recipient } =
-      row;
+    const {
+      id,
+      queue_id,
+      timestamp,
+      status,
+      description,
+      message_id,
+      recipient,
+    } = row;
     try {
       if (process.env.WEBHOOK) {
         await axios.post(process.env.WEBHOOK, {
@@ -125,20 +133,17 @@ export async function processLogs(logs) {
           message_id,
           recipient,
         });
-        await dbRun(updateWebhookStmt, [1, queue_id, timestamp, status]);
+        await dbRun(updateWebhookStmt, [1, id]);
         webhookSent++;
       } else {
-        await dbRun(updateWebhookStmt, [-1, queue_id, timestamp, status]);
+        await dbRun(updateWebhookStmt, [-1, id]);
       }
     } catch (err) {
       console.error(`Webhook failed for queueId ${queue_id}: ${err.message}`);
     }
   }
 
-  [insertMailStmt, insertStatusStmt, updateWebhookStmt].forEach((stmt) =>
-    stmt.finalize(),
-  );
-  return { newStatuses, webhookSent };
+  return webhookSent;
 }
 
 export async function syncLogsWithDb() {
@@ -162,19 +167,19 @@ export async function truncateOldLogs() {
         function (err) {
           if (err) return reject(err);
           if (this.changes > 0) {
-            console.log(`Deleted ${this.changes} rows from mail_status`);
+            console.log(`Deleted ${this.changes} rows from mail_status table`);
           }
         },
       );
 
-      // Delete from mails
+      // Delete from mail
       db.run(
-        `DELETE FROM mails WHERE timestamp < ?`,
+        `DELETE FROM mail WHERE timestamp < ?`,
         [cutoffDate],
         function (err) {
           if (err) return reject(err);
           if (this.changes > 0) {
-            console.log(`Deleted ${this.changes} rows from mails`);
+            console.log(`Deleted ${this.changes} rows from mail table`);
           }
         },
       );

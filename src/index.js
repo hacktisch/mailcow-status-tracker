@@ -1,10 +1,9 @@
 import dotenv from 'dotenv';
+// Load environment variables
+dotenv.config();
 import cron from 'node-cron';
 import { syncLogsWithDb } from './logs.js';
 import { router } from './router.js';
-
-// Load environment variables
-dotenv.config();
 
 const { NODE_ENV, CRON_SCHEDULE, PORT } = process.env;
 const devMode = NODE_ENV === 'development';
