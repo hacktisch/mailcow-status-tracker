@@ -12,12 +12,12 @@ export const router = express();
 router.use(express.json());
 
 const colors = {
-  processed: '#d6a45e',
-  sent: '#bcd514',
-  open: '#028690',
-  bounced: '#c042be',
-  dropped: '#b2129f',
-  deferred: '#459e1a',
+  processed: 'Gray',
+  sent: 'ForestGreen',
+  open: 'SteelBlue',
+  bounced: 'Crimson',
+  dropped: 'Black',
+  deferred: 'Sienna',
 };
 
 // Home route: Fetch logs, process them, and display results
