@@ -15,10 +15,14 @@ async function sendEmail({ from, to, subject, text, html, includeTracker }) {
 
   // Extract email address from 'from' field
   const emailMatch = from.match(/<([^>]+)>/) || [null, from];
-  const emailAddress = emailMatch[1]?.trim();
+  let emailAddress = emailMatch[1]?.trim();
 
   if (!emailAddress || !smtpAccounts[emailAddress]) {
-    throw new Error(`SMTP account for '${emailAddress}' is not configured.`);
+    if (process.env.SMTP_FALLBACK_ACCOUNT) {
+      emailAddress = process.env.SMTP_FALLBACK_ACCOUNT;
+    } else {
+      throw new Error(`SMTP account for '${emailAddress}' is not configured.`);
+    }
   }
 
   const transporter = nodemailer.createTransport({

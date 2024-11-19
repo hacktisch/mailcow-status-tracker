@@ -50,6 +50,7 @@ It also supports sending emails and tracking opens via a tracking pixel. And it 
 | `SMTP_PORT`          | SMTP server port for sending emails.                           | `465`                                           |
 | `SMTP_SECURE`        | Whether the SMTP server uses TLS/SSL (`true` or `false`).       | `true`                                          |
 | `SMTP_ACCOUNTS`      | JSON object of email accounts with passwords for sending mail.  | `{"alice@example.com":"PASSWORD1","bob@example.com":"PASSWORD2"}` |
+| `SMTP_FALLBACK_ACCOUNT`      | The account that is used if an unknown account was passed to the send route | `alice@example.com` |
 | `AUTH_PASSWORD`      | Password to protect the `/send` route. Optional.                | `PasswordToProtectTheMailRoute123`              |
 
 ## Usage
