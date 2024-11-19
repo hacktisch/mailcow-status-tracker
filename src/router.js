@@ -198,7 +198,7 @@ router.post('/send', async (req, res) => {
       subject,
       cc,
       bcc,
-      attachment,
+      attachments,
       text,
       html,
       includeTracker,
