@@ -32,10 +32,10 @@ router.get('/', async (req, res) => {
     const query = `
       SELECT 
           mail.recipient, 
-          mail.message_id AS messageId, 
+          mail.message_id, 
           mail_status.status, 
           mail_status.timestamp, 
-          mail.queue_id AS queueId,
+          mail.queue_id,
           tracking_id,
           webhook
       FROM mail_status
@@ -55,9 +55,10 @@ router.get('/', async (req, res) => {
                 colors[log.status] || 'gray'
               }; color: white;">${log.status}</span></td>
               <td>${new Date(log.timestamp).toLocaleString()}</td>
-              <td>${log.queueId}</td>
+              <td>${log.queue_id}</td>
               <td>${log.webhook}</td>
-              <td>${log.messageId || 'Unknown'}</td>
+              <td>${(log.message_id || 'Unknown').replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")}</td>
               <td>${log.tracking_id || '-'}</td>
           </tr>
         `,
