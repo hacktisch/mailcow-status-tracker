@@ -1,4 +1,6 @@
 import express from 'express';
+import multer from 'multer';
+const upload = multer();
 import {
   syncLogsWithDb,
   fetchLogs,
@@ -9,7 +11,7 @@ import { dbAll, dbRun, insertStatusStmt } from './db.js';
 import { sendEmail } from './mailer.js';
 
 export const router = express();
-router.use(express.json());
+router.use(express.json({ limit: '25mb' }));
 
 const colors = {
   processed: 'Gray',
@@ -162,19 +164,9 @@ router.get('/sync-logs', async (req, res) => {
   }
 });
 
-router.post('/send', async (req, res) => {
-  const {
-    from,
-    to,
-    subject,
-    cc,
-    bcc,
-    attachments,
-    text,
-    html,
-    includeTracker,
-    password,
-  } = req.body;
+router.post('/send', upload.any(), async (req, res) => {
+  const { from, to, subject, cc, bcc, text, html, includeTracker, password, attachments=[] } =
+    req.body;
 
   // Check if authentication is required
   if (process.env.AUTH_PASSWORD) {
@@ -184,6 +176,21 @@ router.post('/send', async (req, res) => {
       });
     }
   }
+
+  /*
+  let { attachments } = req.body;
+
+  if (!Array.isArray(attachments)) {
+    attachments = [];
+  }
+  console.log(req.files,'req.files')
+  if (req.files) {
+    for (const file of req.files) {
+      console.log(file)
+     // attachments.push(file)
+    
+    }
+  }*/
 
   if (!from || !to || !subject) {
     return res.status(400).json({
@@ -198,10 +205,13 @@ router.post('/send', async (req, res) => {
       subject,
       cc,
       bcc,
-      attachments,
       text,
       html,
       includeTracker,
+      attachments: attachments.map(({ filecontent, filename }) => ({
+        content: Buffer.from(filecontent, 'base64'), // Convert base64 to Buffer
+        filename,
+      })),
     });
     return res.status(200).json({ success: true, messageId });
   } catch (error) {

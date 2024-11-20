@@ -13,6 +13,7 @@ async function sendEmail({
   includeTracker,
   attachments,
 }) {
+  console.log(`Sending email from ${from} to ${to} with subject: ${subject}`);
   const smtpConfig = {
     host: process.env.SMTP_HOST,
     port: parseInt(process.env.SMTP_PORT, 10),
@@ -99,7 +100,7 @@ async function sendEmail({
       }
     }
 
-    return info.messageId.replace(/[<>]/g, ''); // Remove < and > for consistency
+    return info.messageId;
   } catch (error) {
     console.error(`Error sending email from ${from} to ${to}:`, error.message);
     throw error;
