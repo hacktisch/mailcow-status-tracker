@@ -11,7 +11,8 @@ import { dbAll, dbRun, insertStatusStmt } from './db.js';
 import { sendEmail } from './mailer.js';
 
 export const router = express();
-router.use(express.json({ limit: '25mb' }));
+router.use(express.json({ limit: '50mb' }));
+router.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 const colors = {
   processed: 'Gray',
