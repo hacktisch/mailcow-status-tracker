@@ -221,9 +221,9 @@ router.get('/track', async (req, res) => {
   const { trackingId } = req.query;
 
   if (trackingId) {
-    const query = `SELECT id FROM mail WHERE tracking_id = ? AND timestamp <= datetime('now', '-5 seconds')`;
-
-    const rows = await dbAll(query, [trackingId]);
+    const trackingTimeThreshold = new Date(Date.now() - 5 * 1000).toISOString(); // 5 seconds ago
+    const query = `SELECT id FROM mail WHERE tracking_id = ? AND timestamp <= ?`;
+    const rows = await dbAll(query, [trackingId, trackingTimeThreshold]);
 
     if (rows.length > 0) {
       console.log(`Human opened email with tracking ID: ${trackingId}`);
