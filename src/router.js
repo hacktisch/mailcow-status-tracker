@@ -57,8 +57,9 @@ router.get('/', async (req, res) => {
               <td>${new Date(log.timestamp).toLocaleString()}</td>
               <td>${log.queue_id}</td>
               <td>${log.webhook}</td>
-              <td>${(log.message_id || 'Unknown').replace(/</g, "&lt;")
-                .replace(/>/g, "&gt;")}</td>
+              <td>${(log.message_id || 'Unknown')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')}</td>
               <td>${log.tracking_id || '-'}</td>
           </tr>
         `,
@@ -220,16 +221,27 @@ router.get('/track', async (req, res) => {
   const { trackingId } = req.query;
 
   if (trackingId) {
-    console.log(`Email opened with tracking ID: ${trackingId}`);
-
-    const query = `SELECT id FROM mail WHERE tracking_id = ?`;
+    const query = `SELECT id FROM mail WHERE tracking_id = ? AND timestamp <= datetime('now', '-5 seconds')`;
 
     const rows = await dbAll(query, [trackingId]);
 
-    for (const { id } of rows) {
-      await dbRun(insertStatusStmt, [id, new Date().toISOString(), 'open', '']);
+    if (rows.length > 0) {
+      console.log(`Human opened email with tracking ID: ${trackingId}`);
+
+      for (const { id } of rows) {
+        await dbRun(insertStatusStmt, [
+          id,
+          new Date().toISOString(),
+          'open',
+          '',
+        ]);
+      }
+      await sendWebhooks();
+    } else {
+      console.log(
+        `Skipping open for tracking ID ${trackingId} due to short timespan.`,
+      );
     }
-    await sendWebhooks();
   }
 
   // Anti-cache headers
