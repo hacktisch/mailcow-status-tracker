@@ -77,7 +77,7 @@ It also supports sending emails and tracking opens via a tracking pixel. And it 
      ```http
      POST /send
      ```
-     **Body Parameters**:
+     **Body Parameters** (JSON and multipart/form-data are both supported):
      - `password` (string, optional): Password to authorize the request if `AUTH_PASSWORD` is set.
      - `from` (string): Sender's email in the format `"Name <email@example.com>"` or just `email@example.com`.
      - `to` (string): Recipient's email address.
@@ -97,7 +97,8 @@ It also supports sending emails and tracking opens via a tracking pixel. And it 
        "to": "recipient@example.com",
        "subject": "Hello World",
        "html": "<p>This is a test email.</p>",
-       "includeTracker": true
+       "includeTracker": true,
+       "attachments": [files]
      }
      ```
 

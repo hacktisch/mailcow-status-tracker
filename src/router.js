@@ -165,8 +165,18 @@ router.get('/sync-logs', async (req, res) => {
 });
 
 router.post('/send', upload.any(), async (req, res) => {
-  const { from, to, subject, cc, bcc, text, html, includeTracker, password, attachments=[] } =
-    req.body;
+  const {
+    from,
+    to,
+    subject,
+    cc,
+    bcc,
+    text,
+    html,
+    includeTracker,
+    password,
+    attachments = [],
+  } = req.body;
 
   // Check if authentication is required
   if (process.env.AUTH_PASSWORD) {
@@ -176,21 +186,6 @@ router.post('/send', upload.any(), async (req, res) => {
       });
     }
   }
-
-  /*
-  let { attachments } = req.body;
-
-  if (!Array.isArray(attachments)) {
-    attachments = [];
-  }
-  console.log(req.files,'req.files')
-  if (req.files) {
-    for (const file of req.files) {
-      console.log(file)
-     // attachments.push(file)
-    
-    }
-  }*/
 
   if (!from || !to || !subject) {
     return res.status(400).json({
