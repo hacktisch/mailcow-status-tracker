@@ -1,5 +1,6 @@
 import express from 'express';
 import multer from 'multer';
+import cors from 'cors';
 const upload = multer();
 import {
   syncLogsWithDb,
@@ -13,6 +14,25 @@ import { sendEmail } from './mailer.js';
 export const router = express();
 router.use(express.json({ limit: '50mb' }));
 router.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+const corsOptions = {
+  origin: (origin, callback) => {
+    const allowedOrigins = process.env.CORS_ALLOWED_ORIGINS
+      ? process.env.CORS_ALLOWED_ORIGINS.split(',')
+      : [];
+    // Allow requests with no origin (e.g., mobile apps or CURL)
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error(`Origin ${origin} not allowed by CORS`));
+    }
+  },
+  credentials: process.env.CORS_ALLOW_CREDENTIALS === 'true',
+  methods: process.env.CORS_ALLOWED_METHODS || 'GET,POST',
+  allowedHeaders:
+    process.env.CORS_ALLOWED_HEADERS || 'Content-Type,Authorization',
+};
+router.use(cors(corsOptions));
 
 const colors = {
   processed: 'Gray',
