@@ -191,6 +191,7 @@ router.post('/send', upload.any(), async (req, res) => {
   const {
     from,
     to,
+    reply_to,
     subject,
     cc,
     bcc,
@@ -220,6 +221,7 @@ router.post('/send', upload.any(), async (req, res) => {
     const messageId = await sendEmail({
       from,
       to,
+      reply_to,
       subject,
       cc,
       bcc,

@@ -5,6 +5,7 @@ import { dbRun, dbGet, insertMailStmt, insertStatusStmt } from './db.js';
 async function sendEmail({
   from,
   to,
+  reply_to,
   cc,
   bcc,
   subject,
@@ -68,6 +69,7 @@ async function sendEmail({
   const mailOptions = {
     from, // Pass the full `from` field, including the name if provided
     to,
+    replyTo: reply_to,
     cc: cc?.length ? cc : undefined,
     bcc: bcc?.length ? bcc : undefined,
     subject,
