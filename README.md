@@ -51,6 +51,7 @@ It also supports sending emails and tracking opens via a tracking pixel. And it 
 | `SMTP_SECURE`        | Whether the SMTP server uses TLS/SSL (`true` or `false`).       | `true`                                          |
 | `SMTP_ACCOUNTS`      | JSON object of email accounts with passwords for sending mail.  | `{"alice@example.com":"PASSWORD1","bob@example.com":"PASSWORD2"}` |
 | `SMTP_FALLBACK_ACCOUNT`      | The account that is used if an unknown account was passed to the send route | `alice@example.com` |
+| `UNSUBSCRIBE_EMAIL`          | Email address to receive unsubscribe requests                               | `unsubscribe@example.com` |
 | `AUTH_PASSWORD`      | Password to protect the `/send` route. Optional.                | `PasswordToProtectTheMailRoute123`              |
 | `CORS_ALLOWED_ORIGINS`      | Origins to allow requests from, comma separated                | `http://example.com,http://another-example.com`              |
 
@@ -89,6 +90,7 @@ It also supports sending emails and tracking opens via a tracking pixel. And it 
      - `cc` (array, optional): Array of CC addresses.
      - `bcc` (array, optional): Array of BCC addresses.
      - `attachments` (array, optional): Array of files in format `[{content:'...',filename:'...'}]`
+     - `unsubscribe` (string, optional): If set, adds unsubscribe functionality with this text as the link text. Example: "Click here to unsubscribe"
 
      **Example Request**:
      ```json
@@ -99,6 +101,7 @@ It also supports sending emails and tracking opens via a tracking pixel. And it 
        "subject": "Hello World",
        "html": "<p>This is a test email.</p>",
        "includeTracker": true,
+       "unsubscribe": "Click here to unsubscribe",
        "attachments": [files]
      }
      ```

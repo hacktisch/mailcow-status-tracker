@@ -200,6 +200,7 @@ router.post('/send', upload.any(), async (req, res) => {
     includeTracker,
     password,
     attachments = [],
+    unsubscribe
   } = req.body;
 
   // Check if authentication is required
@@ -218,6 +219,13 @@ router.post('/send', upload.any(), async (req, res) => {
   }
 
   try {
+
+    const unsubscribeParams = unsubscribe ? {
+      unsubscribeUrl: `${process.env.APP_URL_ORIGIN}/unsubscribe?email=${encodeURIComponent(to)}`,
+      unsubscribeEmail: process.env.UNSUBSCRIBE_EMAIL,
+      unsubscribeLinkText: unsubscribe
+    } : {};
+
     const messageId = await sendEmail({
       from,
       to,
@@ -232,6 +240,7 @@ router.post('/send', upload.any(), async (req, res) => {
         content: Buffer.from(filecontent, 'base64'), // Convert base64 to Buffer
         filename,
       })),
+      ...unsubscribeParams
     });
     return res.status(200).json({ success: true, messageId });
   } catch (error) {
@@ -285,5 +294,80 @@ router.get('/track', async (req, res) => {
     'Content-Length': transparentGif.length,
   });
   res.end(transparentGif);
+});
+
+router.get('/unsubscribe', async (req, res) => {
+  const { email } = req.query;
+
+  if (!email || !email.includes('@')) {
+    return res.status(400).send(`
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Unsubscribe Error</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 20px; text-align: center; padding-top: 50px; }
+        </style>
+      </head>
+      <body>
+        <h1>Error</h1>
+        <p>Invalid email address provided.</p>
+      </body>
+      </html>
+    `);
+  }
+
+  try {
+    if (!process.env.UNSUBSCRIBE_EMAIL) {
+      throw new Error('UNSUBSCRIBE_EMAIL environment variable is not configured');
+    }
+
+    await sendEmail({
+      from: process.env.SMTP_FALLBACK_ACCOUNT || 'noreply@example.com',
+      to: process.env.UNSUBSCRIBE_EMAIL,
+      subject: 'Unsubscribe Request',
+      text: `The following email address has requested to be unsubscribed: ${email}`,
+      html: `<p>The following email address has requested to be unsubscribed:</p><p><strong>${email}</strong></p>`
+    });
+
+    res.send(`
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Unsubscribe Success</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 20px; text-align: center; padding-top: 50px; }
+        </style>
+      </head>
+      <body>
+        <h1>Success</h1>
+        <p>You have been successfully unsubscribed.</p>
+      </body>
+      </html>
+    `);
+  } catch (error) {
+    console.error('Error processing unsubscribe request:', error.message);
+    res.status(500).send(`
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Unsubscribe Error</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 20px; text-align: center; padding-top: 50px; }
+        </style>
+      </head>
+      <body>
+        <h1>Error</h1>
+        <p>There was an error processing your unsubscribe request. Please try again later.</p>
+      </body>
+      </html>
+    `);
+  }
 });
 

@@ -13,6 +13,9 @@ async function sendEmail({
   html,
   includeTracker,
   attachments,
+  unsubscribeUrl,
+  unsubscribeEmail,
+  unsubscribeLinkText
 }) {
   console.log(`Sending email from ${from} to ${to} with subject: ${subject}`);
   const smtpConfig = {
@@ -57,13 +60,33 @@ async function sendEmail({
     trackingPixel = `<img src="${process.env.APP_URL_ORIGIN}/track?trackingId=${trackingId}" style="width:1px;height:1px;display:block;">`;
   }
 
+  // Add unsubscribe link if requested
+  let unsubscribeLink = '';
+  if (unsubscribeUrl && unsubscribeLinkText) {
+    unsubscribeLink = `
+      <div style="margin-top: 20px; padding-top: 10px; border-top: 1px solid #ddd; font-size: 12px; color: #666; text-align: center;">
+        <a href="${unsubscribeUrl}" style="color: #666; text-decoration: underline;">${unsubscribeLinkText}</a>
+      </div>
+    `;
+  }
+
   // Merge text and HTML content
-  const emailContent =
-    html || text
-      ? html
-        ? `${html}${trackingPixel}`
-        : `<p>${text}</p>${trackingPixel}`
-      : null;
+  let emailContent;
+  if (html) {
+    // If HTML is provided, append tracking pixel and unsubscribe link
+    emailContent = `${html}${unsubscribeLink}${trackingPixel}`;
+  } else if (text) {
+    // If only text is provided, convert to HTML and append tracking pixel and unsubscribe link
+    emailContent = `<p>${text}</p>${unsubscribeLink}${trackingPixel}`;
+  } else {
+    emailContent = null;
+  }
+
+  // Update text version too if there's an unsubscribe link
+  let textContent = text;
+  if (text && unsubscribeUrl && unsubscribeLinkText) {
+    textContent = `${text}\n\n${unsubscribeLinkText}: ${unsubscribeUrl}`;
+  }
 
   // Construct mail options
   const mailOptions = {
@@ -73,10 +96,30 @@ async function sendEmail({
     cc: cc?.length ? cc : undefined,
     bcc: bcc?.length ? bcc : undefined,
     subject,
-    text,
+    text: textContent,
     html: emailContent,
     attachments,
   };
+
+  // Add List-Unsubscribe header if provided
+  if (unsubscribeUrl || unsubscribeEmail) {
+    mailOptions.headers = mailOptions.headers || {};
+    
+    let unsubscribeHeader = [];
+    if (unsubscribeEmail) {
+      unsubscribeHeader.push(`mailto:${unsubscribeEmail}`);
+    }
+    if (unsubscribeUrl) {
+      unsubscribeHeader.push(`<${unsubscribeUrl}>`);
+    }
+    
+    mailOptions.headers['List-Unsubscribe'] = unsubscribeHeader.join(', ');
+    
+    // Add List-Unsubscribe-Post header for one-click unsubscribe if URL is provided
+    if (unsubscribeUrl) {
+      mailOptions.headers['List-Unsubscribe-Post'] = 'List-Unsubscribe=One-Click';
+    }
+  }
 
   try {
     const info = await transporter.sendMail(mailOptions);
