@@ -3,6 +3,8 @@
 This is a Node.js-based application for tracking and processing email logs from a Mailcow server. It fetches logs, stores them in a SQLite database, and provides a web interface and API endpoints for viewing email statuses.\
 It also supports sending emails and tracking opens via a tracking pixel. And it supports triggering external webhooks to notify other servers with the status updates.
 
+**Check out  [rallisf1/mailcow-status-app](https://github.com/rallisf1/mailcow-status-app) for an improved PHP rewrite of this project!**
+
 ![Table showing example logs](docs/logs-screenshot.png)
 
 ## Features
