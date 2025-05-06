@@ -329,7 +329,7 @@ router.get('/unsubscribe', async (req, res) => {
       to: process.env.UNSUBSCRIBE_EMAIL,
       subject: 'Unsubscribe Request',
       text: `The following email address has requested to be unsubscribed: ${email}`,
-      html: `<p>The following email address has requested to be unsubscribed:</p><p><strong>${email}</strong></p>`
+      html: `<p>The following email address has requested to be unsubscribed:</p><p><strong>${email.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</strong></p>`
     });
 
     res.send(`
